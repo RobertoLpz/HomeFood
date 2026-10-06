@@ -1,0 +1,11 @@
+{
+  "appId": "com.homefood.app",
+  "appName": "HomeFood",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

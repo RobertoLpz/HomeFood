@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HomeFood</string>
+    <string name="title_activity_main">HomeFood</string>
+    <string name="package_name">com.homefood.app</string>
+    <string name="custom_url_scheme">com.homefood.app</string>
+</resources>
