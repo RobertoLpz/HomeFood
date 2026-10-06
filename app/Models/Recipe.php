@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\Difficulty;
 use App\Enums\RecipeSource;
 use Database\Factories\RecipeFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,21 +28,23 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable([
-    'household_id',
-    'name',
-    'description',
-    'image_path',
-    'prep_minutes',
-    'servings',
-    'difficulty',
-    'instructions',
-    'source',
-])]
 class Recipe extends Model
 {
     /** @use HasFactory<RecipeFactory> */
     use HasFactory, SoftDeletes;
+
+    /** @var list<string> */
+    protected $fillable = [
+        'household_id',
+        'name',
+        'description',
+        'image_path',
+        'prep_minutes',
+        'servings',
+        'difficulty',
+        'instructions',
+        'source',
+    ];
 
     /**
      * @return array<string, string>

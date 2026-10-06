@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\MealType;
 use Database\Factories\MealPlanItemFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,11 +21,13 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['meal_plan_id', 'recipe_id', 'planned_on', 'meal_type', 'servings', 'notes', 'cooked_at'])]
 class MealPlanItem extends Model
 {
     /** @use HasFactory<MealPlanItemFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = ['meal_plan_id', 'recipe_id', 'planned_on', 'meal_type', 'servings', 'notes', 'cooked_at'];
 
     /**
      * @return array<string, string>

@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\ItemSource;
 use App\Enums\Unit;
 use Database\Factories\ShoppingListItemFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,19 +23,21 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable([
-    'shopping_list_id',
-    'ingredient_id',
-    'quantity',
-    'unit',
-    'purchased_at',
-    'price',
-    'source',
-])]
 class ShoppingListItem extends Model
 {
     /** @use HasFactory<ShoppingListItemFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = [
+        'shopping_list_id',
+        'ingredient_id',
+        'quantity',
+        'unit',
+        'purchased_at',
+        'price',
+        'source',
+    ];
 
     /**
      * @return array<string, string>

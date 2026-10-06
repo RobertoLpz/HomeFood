@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\Unit;
 use Database\Factories\PurchaseHistoryFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,21 +23,23 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable([
-    'household_id',
-    'shopping_list_id',
-    'shopping_list_item_id',
-    'ingredient_id',
-    'quantity',
-    'unit',
-    'price',
-    'store',
-    'purchased_on',
-])]
 class PurchaseHistory extends Model
 {
     /** @use HasFactory<PurchaseHistoryFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = [
+        'household_id',
+        'shopping_list_id',
+        'shopping_list_item_id',
+        'ingredient_id',
+        'quantity',
+        'unit',
+        'price',
+        'store',
+        'purchased_on',
+    ];
 
     /**
      * @return array<string, string>

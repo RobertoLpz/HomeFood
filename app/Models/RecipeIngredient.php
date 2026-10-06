@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\Unit;
 use Database\Factories\RecipeIngredientFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,11 +17,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_optional
  * @property int $sort_order
  */
-#[Fillable(['recipe_id', 'ingredient_id', 'quantity', 'unit', 'is_optional', 'sort_order'])]
 class RecipeIngredient extends Model
 {
     /** @use HasFactory<RecipeIngredientFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = ['recipe_id', 'ingredient_id', 'quantity', 'unit', 'is_optional', 'sort_order'];
 
     public $timestamps = false;
 

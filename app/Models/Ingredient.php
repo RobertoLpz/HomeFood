@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\Dimension;
 use App\Enums\Unit;
 use Database\Factories\IngredientFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,11 +21,13 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['household_id', 'name', 'normalized_name', 'dimension', 'default_unit'])]
 class Ingredient extends Model
 {
     /** @use HasFactory<IngredientFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = ['household_id', 'name', 'normalized_name', 'dimension', 'default_unit'];
 
     protected static function booted(): void
     {

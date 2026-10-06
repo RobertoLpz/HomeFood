@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\Unit;
 use Database\Factories\InventoryItemFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,11 +19,13 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['household_id', 'ingredient_id', 'quantity', 'unit', 'expires_on'])]
 class InventoryItem extends Model
 {
     /** @use HasFactory<InventoryItemFactory> */
     use HasFactory;
+
+    /** @var list<string> */
+    protected $fillable = ['household_id', 'ingredient_id', 'quantity', 'unit', 'expires_on'];
 
     /**
      * @return array<string, string>
