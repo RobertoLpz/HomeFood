@@ -1,11 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { z } from 'zod'
-import { IngredientPicker } from '../../components/IngredientPicker'
-import { ErrorBlock, Field, buttonClass, inputClass } from '../../components/ui'
-import * as ingredientApi from '../../services/api/ingredients'
-import type { Dimension, Unit } from '../../types'
-import { errorMessage } from '../../utils/errors'
-import { DIMENSIONS, unitsFor } from '../../utils/units'
+import { Field, PageTitle } from '@/components/feedback'
+import { IngredientPicker } from '@/components/IngredientPicker'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
+import { notifyError, notifySuccess } from '@/lib/notify'
+import * as ingredientApi from '@/services/api/ingredients'
+import type { Dimension, Unit } from '@/types'
+import { errorMessage } from '@/utils/errors'
+import { DIMENSIONS, unitsFor } from '@/utils/units'
 
 const schema = z.object({
   name: z.string().trim().min(2, 'Nombre muy corto'),
@@ -18,7 +24,7 @@ export function IngredientCreator() {
   const [dimension, setDimension] = useState<Dimension>('count')
   const [unit, setUnit] = useState<Unit>('piece')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     const next = unitsFor(dimension)[0]?.value
@@ -32,48 +38,63 @@ export function IngredientCreator() {
       setError(parsed.error.issues[0]?.message ?? 'Revisa el formulario')
       return
     }
+    setPending(true)
     setError('')
     try {
       await ingredientApi.createIngredient(parsed.data)
       setName('')
-      setNotice('Ingrediente creado para este hogar.')
+      notifySuccess('Ingrediente creado', parsed.data.name)
     } catch (reason) {
-      setError(errorMessage(reason))
+      const message = errorMessage(reason)
+      setError(message)
+      notifyError(message)
+    } finally {
+      setPending(false)
     }
   }
 
   return (
-    <div className="space-y-4">
-      <IngredientPicker onSelect={(ingredient) => setNotice(`${ingredient.name} ya existe.`)} />
-      <form className="space-y-3" onSubmit={(event) => void onSubmit(event)}>
-        <h2 className="text-lg font-semibold">Crear del hogar</h2>
+    <div className="space-y-6">
+      <PageTitle hint="Busca antes de crear uno nuevo para este hogar." title="Ingredientes" />
+      <Card>
+        <CardHeader>
+          <CardTitle>¿Ya existe?</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <IngredientPicker onSelect={(ingredient) => notifySuccess('Ese ingrediente ya existe', ingredient.name)} />
+        </CardContent>
+      </Card>
+      <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
         <Field label="Nombre">
-          <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
+          <Input value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="Tipo">
-          <select className={inputClass} value={dimension} onChange={(event) => setDimension(event.target.value as Dimension)}>
+          <NativeSelect value={dimension} onChange={(event) => setDimension(event.target.value as Dimension)}>
             {DIMENSIONS.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </Field>
         <Field label="Unidad base">
-          <select className={inputClass} value={unit} onChange={(event) => setUnit(event.target.value as Unit)}>
+          <NativeSelect value={unit} onChange={(event) => setUnit(event.target.value as Unit)}>
             {unitsFor(dimension).map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </Field>
-        <button className={`${buttonClass} w-full`} type="submit">
-          Crear ingrediente
-        </button>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <Button className="w-full" disabled={pending} type="submit">
+          {pending ? 'Guardando…' : 'Crear ingrediente'}
+        </Button>
       </form>
-      {notice ? <p className="text-emerald-800">{notice}</p> : null}
-      {error ? <ErrorBlock message={error} /> : null}
     </div>
   )
 }

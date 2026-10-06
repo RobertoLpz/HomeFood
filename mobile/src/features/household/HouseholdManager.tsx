@@ -1,8 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { z } from 'zod'
-import { ErrorBlock, Field, buttonClass, inputClass, secondaryButtonClass } from '../../components/ui'
-import { useHousehold } from '../../context/HouseholdContext'
-import { errorMessage } from '../../utils/errors'
+import { EmptyBlock, Field, PageTitle } from '@/components/feedback'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { useHousehold } from '@/context/HouseholdContext'
+import { notifyError, notifySuccess } from '@/lib/notify'
+import { errorMessage } from '@/utils/errors'
 
 const nameSchema = z.object({ name: z.string().trim().min(2, 'El nombre es muy corto') })
 const emailSchema = z.object({ email: z.email('Correo no válido') })
@@ -12,8 +18,9 @@ export function HouseholdManager() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [pending, setPending] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   async function onCreate(event: FormEvent) {
     event.preventDefault()
@@ -27,9 +34,12 @@ export function HouseholdManager() {
     try {
       await create(parsed.data.name)
       setName('')
-      setNotice('Hogar creado.')
+      setCreateOpen(false)
+      notifySuccess('Hogar creado', parsed.data.name)
     } catch (reason) {
-      setError(errorMessage(reason))
+      const message = errorMessage(reason)
+      setError(message)
+      notifyError(message)
     } finally {
       setPending(false)
     }
@@ -47,9 +57,12 @@ export function HouseholdManager() {
     try {
       await addMember(parsed.data.email)
       setEmail('')
-      setNotice('Miembro agregado.')
+      setInviteOpen(false)
+      notifySuccess('Miembro agregado', parsed.data.email)
     } catch (reason) {
-      setError(errorMessage(reason))
+      const message = errorMessage(reason)
+      setError(message)
+      notifyError(message)
     } finally {
       setPending(false)
     }
@@ -57,50 +70,102 @@ export function HouseholdManager() {
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Tus hogares</h2>
-        {households.length === 0 ? <p className="text-stone-500">Aún no perteneces a un hogar.</p> : null}
-        {households.map((household) => (
-          <button
-            key={household.id}
-            type="button"
-            className={`${household.id === current?.id ? buttonClass : secondaryButtonClass} w-full`}
-            onClick={() => void select(household.id)}
-          >
-            {household.name}
-            {household.role ? ` · ${household.role === 'owner' ? 'dueño' : 'miembro'}` : ''}
-          </button>
-        ))}
-      </section>
-      <form className="space-y-3" onSubmit={(event) => void onCreate(event)}>
-        <h2 className="text-lg font-semibold">Nuevo hogar</h2>
-        <Field label="Nombre">
-          <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
-        </Field>
-        <button className={`${buttonClass} w-full`} disabled={pending} type="submit">
-          Crear hogar
-        </button>
-      </form>
+      <PageTitle
+        action={
+          <Button type="button" onClick={() => { setError(''); setCreateOpen(true) }}>
+            Nuevo
+          </Button>
+        }
+        hint="Cambia de hogar o invita a quien cocina contigo."
+        title="Hogar"
+      />
+      {households.length === 0 ? <EmptyBlock hint="Crea el primero para guardar recetas e inventario." title="Aún no perteneces a un hogar" /> : null}
+      <div className="space-y-2">
+        {households.map((household) => {
+          const active = household.id === current?.id
+          return (
+            <Button
+              key={household.id}
+              className="w-full justify-between"
+              type="button"
+              variant={active ? 'default' : 'outline'}
+              onClick={() => void select(household.id)}
+            >
+              <span>{household.name}</span>
+              {household.role ? (
+                <span className="text-sm font-medium opacity-80">{household.role === 'owner' ? 'Dueño' : 'Miembro'}</span>
+              ) : null}
+            </Button>
+          )
+        })}
+      </div>
       {current ? (
-        <form className="space-y-3" onSubmit={(event) => void onInvite(event)}>
-          <h2 className="text-lg font-semibold">Agregar miembro</h2>
-          <Field label="Correo de una cuenta ya registrada">
-            <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          </Field>
-          <button className={`${secondaryButtonClass} w-full`} disabled={pending} type="submit">
-            Invitar
-          </button>
-          <ul className="space-y-2">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Miembros</CardTitle>
+            <Button size="sm" type="button" variant="secondary" onClick={() => { setError(''); setInviteOpen(true) }}>
+              Invitar
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {members.length === 0 ? <p className="text-muted-foreground text-sm">Todavía no hay miembros.</p> : null}
             {members.map((member) => (
-              <li key={member.id} className="rounded-xl bg-white px-3 py-3">
-                {member.name} · {member.email}
-              </li>
+              <div key={member.id} className="bg-muted rounded-2xl px-3 py-3">
+                <p className="font-medium">{member.name}</p>
+                <p className="text-muted-foreground text-sm">{member.email}</p>
+              </div>
             ))}
-          </ul>
-        </form>
+          </CardContent>
+        </Card>
       ) : null}
-      {notice ? <p className="text-sm text-emerald-800">{notice}</p> : null}
-      {error ? <ErrorBlock message={error} /> : null}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo hogar</DialogTitle>
+            <DialogDescription>Un hogar agrupa recetas, despensa y compras.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => void onCreate(event)}>
+            <Field label="Nombre">
+              <Input value={name} onChange={(event) => setName(event.target.value)} />
+            </Field>
+            {error && createOpen ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button disabled={pending} type="submit">
+                {pending ? 'Guardando…' : 'Crear hogar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar miembro</DialogTitle>
+            <DialogDescription>Usa el correo de una cuenta que ya esté registrada.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => void onInvite(event)}>
+            <Field label="Correo">
+              <Input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+            </Field>
+            {error && inviteOpen ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button disabled={pending} type="submit">
+                {pending ? 'Guardando…' : 'Invitar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

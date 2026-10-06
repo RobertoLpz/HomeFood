@@ -1,11 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { z } from 'zod'
-import { IngredientPicker } from '../../components/IngredientPicker'
-import { EmptyBlock, ErrorBlock, Field, LoadingBlock, buttonClass, inputClass } from '../../components/ui'
-import * as inventoryApi from '../../services/api/inventory'
-import type { InventoryItem, Unit } from '../../types'
-import { errorMessage } from '../../utils/errors'
-import { unitLabel, unitsFor, dimensionOf } from '../../utils/units'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { EmptyBlock, ErrorBlock, Field, LoadingBlock, PageTitle } from '@/components/feedback'
+import { IngredientPicker } from '@/components/IngredientPicker'
+import { QuantityEditor } from '@/components/quantity-editor'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Input } from '@/components/ui/input'
+import { notifyError, notifySuccess } from '@/lib/notify'
+import * as inventoryApi from '@/services/api/inventory'
+import type { InventoryItem, Unit } from '@/types'
+import { errorMessage } from '@/utils/errors'
+import { dimensionOf, unitLabel, unitsFor } from '@/utils/units'
 
 const qtySchema = z.object({ quantity: z.number().positive('Cantidad mayor a 0') })
 
@@ -13,9 +22,14 @@ export function InventoryPanel() {
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [open, setOpen] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [pending, setPending] = useState(false)
+  const [savingId, setSavingId] = useState<number | null>(null)
   const [picked, setPicked] = useState<{ id: number; name: string; unit: Unit } | null>(null)
   const [quantity, setQuantity] = useState('1')
   const [unit, setUnit] = useState<Unit>('piece')
+  const [removing, setRemoving] = useState<InventoryItem | null>(null)
 
   async function load() {
     setLoading(true)
@@ -33,50 +47,83 @@ export function InventoryPanel() {
     void load()
   }, [])
 
+  function resetForm() {
+    setPicked(null)
+    setQuantity('1')
+    setFormError('')
+  }
+
   async function onAdd(event: FormEvent) {
     event.preventDefault()
     if (!picked) {
-      setError('Elige un ingrediente')
+      setFormError('Elige un ingrediente')
       return
     }
     const parsed = qtySchema.safeParse({ quantity: Number(quantity) })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Cantidad no válida')
+      setFormError(parsed.error.issues[0]?.message ?? 'Cantidad no válida')
       return
     }
-    setError('')
+    setPending(true)
+    setFormError('')
     try {
       await inventoryApi.addInventory({ ingredient_id: picked.id, quantity: parsed.data.quantity, unit })
-      setPicked(null)
-      setQuantity('1')
+      notifySuccess('Guardado en inventario', picked.name)
+      setOpen(false)
+      resetForm()
       await load()
     } catch (reason) {
-      setError(errorMessage(reason))
+      const message = errorMessage(reason)
+      setFormError(message)
+      notifyError(message)
+    } finally {
+      setPending(false)
     }
   }
 
   async function saveQuantity(item: InventoryItem, next: string) {
     const parsed = qtySchema.safeParse({ quantity: Number(next) })
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Cantidad no válida')
+      notifyError(parsed.error.issues[0]?.message ?? 'Cantidad no válida')
       return
     }
+    setSavingId(item.id)
     try {
       await inventoryApi.updateInventory(item.id, { quantity: parsed.data.quantity, unit: item.unit, expires_on: item.expires_on })
+      notifySuccess('Cantidad actualizada')
       await load()
     } catch (reason) {
-      setError(errorMessage(reason))
+      notifyError(errorMessage(reason))
+    } finally {
+      setSavingId(null)
     }
   }
 
   async function consume(item: InventoryItem) {
-    const parsed = qtySchema.safeParse({ quantity: 1 })
-    if (!parsed.success) return
+    setSavingId(item.id)
     try {
       await inventoryApi.consumeInventory(item.id, 1, item.unit)
+      notifySuccess('Usaste 1', item.ingredient?.name ?? 'Ingrediente')
       await load()
     } catch (reason) {
-      setError(errorMessage(reason))
+      notifyError(errorMessage(reason))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  async function confirmRemove() {
+    if (!removing) return
+    setPending(true)
+    try {
+      await inventoryApi.deleteInventory(removing.id)
+      notifySuccess('Quitado del inventario')
+      setRemoving(null)
+      await load()
+    } catch (reason) {
+      notifyError(errorMessage(reason))
+    } finally {
+      setPending(false)
     }
   }
 
@@ -84,55 +131,100 @@ export function InventoryPanel() {
 
   return (
     <div className="space-y-4">
+      <PageTitle
+        action={
+          <Button type="button" onClick={() => setOpen(true)}>
+            Agregar
+          </Button>
+        }
+        hint="Lo que ya tienes en casa."
+        title="Inventario"
+      />
       {error ? <ErrorBlock message={error} onRetry={() => void load()} /> : null}
-      {items.length === 0 ? <EmptyBlock title="Inventario vacío" hint="Agrega lo que ya tienes en casa." /> : null}
+      {items.length === 0 ? <EmptyBlock hint="Agrega lo que ya tienes para planear con lo real." title="Inventario vacío" /> : null}
       <ul className="space-y-3">
         {items.map((item) => (
-          <li key={item.id} className="rounded-2xl bg-white p-3">
-            <p className="font-semibold">{item.ingredient?.name ?? `Ingrediente ${item.ingredient_id}`}</p>
-            <p className="text-sm text-stone-500">{unitLabel(item.unit)}</p>
-            <div className="mt-2 flex gap-2">
-              <input
-                className={inputClass}
-                defaultValue={String(item.quantity)}
-                inputMode="decimal"
-                onBlur={(event) => void saveQuantity(item, event.target.value)}
-              />
-              <button type="button" className="min-h-12 rounded-xl bg-amber-100 px-3 font-semibold" onClick={() => void consume(item)}>
-                Usar 1
-              </button>
-              <button type="button" className="min-h-12 px-2 text-red-700" onClick={() => void inventoryApi.deleteInventory(item.id).then(load).catch((reason: unknown) => setError(errorMessage(reason)))}>
-                Borrar
-              </button>
-            </div>
+          <li key={item.id}>
+            <Card className="gap-3 py-4">
+              <CardHeader className="px-4">
+                <CardTitle>{item.ingredient?.name ?? `Ingrediente ${item.ingredient_id}`}</CardTitle>
+                <p className="text-muted-foreground text-sm">{unitLabel(item.unit)}</p>
+              </CardHeader>
+              <CardContent className="space-y-3 px-4">
+                <QuantityEditor key={`${item.id}-${item.quantity}`} pending={savingId === item.id} value={Number(item.quantity)} onSave={(next) => saveQuantity(item, next)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button disabled={savingId === item.id} type="button" variant="secondary" onClick={() => void consume(item)}>
+                    Usar 1
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setRemoving(item)}>
+                    Quitar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </li>
         ))}
       </ul>
-      <form className="space-y-3 rounded-2xl bg-white p-3" onSubmit={(event) => void onAdd(event)}>
-        <h2 className="font-semibold">Agregar</h2>
-        <IngredientPicker
-          onSelect={(ingredient) => {
-            setPicked({ id: ingredient.id, name: ingredient.name, unit: ingredient.default_unit })
-            setUnit(ingredient.default_unit)
-          }}
-        />
-        {picked ? <p className="text-sm">Seleccionado: {picked.name}</p> : null}
-        <Field label="Cantidad">
-          <input className={inputClass} inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
-        </Field>
-        <Field label="Unidad">
-          <select className={inputClass} value={unit} onChange={(event) => setUnit(event.target.value as Unit)}>
-            {unitsFor(dimensionOf(unit)).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <button className={`${buttonClass} w-full`} type="submit">
-          Guardar en inventario
-        </button>
-      </form>
+
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) resetForm()
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar al inventario</DialogTitle>
+            <DialogDescription>Elige el ingrediente y confirma la cantidad antes de guardar.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => void onAdd(event)}>
+            <IngredientPicker
+              onSelect={(ingredient) => {
+                setPicked({ id: ingredient.id, name: ingredient.name, unit: ingredient.default_unit })
+                setUnit(ingredient.default_unit)
+                setFormError('')
+              }}
+            />
+            {picked ? <p className="text-sm font-medium">Seleccionado: {picked.name}</p> : null}
+            <Field label="Cantidad">
+              <Input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+            </Field>
+            <Field label="Unidad">
+              <NativeSelect value={unit} onChange={(event) => setUnit(event.target.value as Unit)}>
+                {unitsFor(dimensionOf(unit)).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            {formError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{formError}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button disabled={pending} type="submit">
+                {pending ? 'Guardando…' : 'Guardar en inventario'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        confirmLabel="Quitar"
+        description={removing ? `Se eliminará ${removing.ingredient?.name ?? 'este ingrediente'} del inventario.` : ''}
+        destructive
+        open={removing !== null}
+        pending={pending}
+        title="Quitar del inventario"
+        onConfirm={() => void confirmRemove()}
+        onOpenChange={(next) => {
+          if (!next) setRemoving(null)
+        }}
+      />
     </div>
   )
 }

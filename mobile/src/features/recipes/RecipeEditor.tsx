@@ -1,12 +1,19 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { z } from 'zod'
-import { IngredientPicker } from '../../components/IngredientPicker'
-import { ErrorBlock, Field, buttonClass, inputClass, secondaryButtonClass } from '../../components/ui'
-import * as recipeApi from '../../services/api/recipes'
-import type { Difficulty, Recipe, Unit } from '../../types'
-import { errorMessage } from '../../utils/errors'
-import { unitLabel, unitsFor, dimensionOf } from '../../utils/units'
+import { Field } from '@/components/feedback'
+import { IngredientPicker } from '@/components/IngredientPicker'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { NativeSelect } from '@/components/ui/native-select'
+import { Textarea } from '@/components/ui/textarea'
+import { notifyError, notifySuccess } from '@/lib/notify'
+import * as recipeApi from '@/services/api/recipes'
+import type { Difficulty, Recipe, Unit } from '@/types'
+import { errorMessage } from '@/utils/errors'
+import { dimensionOf, unitLabel, unitsFor } from '@/utils/units'
 
 const difficulties: Array<{ value: Difficulty; label: string }> = [
   { value: 'easy', label: 'Fácil' },
@@ -51,23 +58,6 @@ export function RecipeEditor({ recipeId }: { recipeId?: number }) {
   const [pending, setPending] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
-    if (!recipeId) return
-    let active = true
-    void recipeApi
-      .getRecipe(recipeId)
-      .then((recipe) => {
-        if (!active) return
-        fill(recipe)
-      })
-      .catch((reason: unknown) => {
-        if (active) setFormError(errorMessage(reason))
-      })
-    return () => {
-      active = false
-    }
-  }, [recipeId])
-
   function fill(recipe: Recipe) {
     setName(recipe.name)
     setServings(String(recipe.servings))
@@ -84,6 +74,23 @@ export function RecipeEditor({ recipeId }: { recipeId?: number }) {
       })),
     )
   }
+
+  useEffect(() => {
+    if (!recipeId) return
+    let active = true
+    void recipeApi
+      .getRecipe(recipeId)
+      .then((recipe) => {
+        if (!active) return
+        fill(recipe)
+      })
+      .catch((reason: unknown) => {
+        if (active) setFormError(errorMessage(reason))
+      })
+    return () => {
+      active = false
+    }
+  }, [recipeId])
 
   function addLine() {
     if (!picked) {
@@ -147,8 +154,11 @@ export function RecipeEditor({ recipeId }: { recipeId?: number }) {
       if (recipeId) await recipeApi.updateRecipe(recipeId, payload)
       else await recipeApi.createRecipe(payload)
       setSaved(true)
+      notifySuccess(recipeId ? 'Receta actualizada' : 'Receta guardada', parsed.data.name)
     } catch (reason) {
-      setFormError(errorMessage(reason))
+      const message = errorMessage(reason)
+      setFormError(message)
+      notifyError(message)
     } finally {
       setPending(false)
     }
@@ -156,81 +166,94 @@ export function RecipeEditor({ recipeId }: { recipeId?: number }) {
 
   return (
     <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
-      <Field label="Nombre" error={errors.name}>
-        <input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} />
+      <Field error={errors.name} label="Nombre">
+        <Input value={name} onChange={(event) => setName(event.target.value)} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Porciones" error={errors.servings}>
-          <input className={inputClass} inputMode="numeric" value={servings} onChange={(event) => setServings(event.target.value)} />
+        <Field error={errors.servings} label="Porciones">
+          <Input inputMode="numeric" value={servings} onChange={(event) => setServings(event.target.value)} />
         </Field>
-        <Field label="Minutos" error={errors.prep_minutes}>
-          <input className={inputClass} inputMode="numeric" value={prep} onChange={(event) => setPrep(event.target.value)} />
+        <Field error={errors.prep_minutes} label="Minutos">
+          <Input inputMode="numeric" value={prep} onChange={(event) => setPrep(event.target.value)} />
         </Field>
       </div>
       <Field label="Dificultad">
-        <select className={inputClass} value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}>
+        <NativeSelect value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}>
           {difficulties.map((item) => (
             <option key={item.value} value={item.value}>
               {item.label}
             </option>
           ))}
-        </select>
+        </NativeSelect>
       </Field>
-      <Field label="Pasos" error={errors.instructions}>
-        <textarea className={`${inputClass} min-h-28 py-3`} value={instructions} onChange={(event) => setInstructions(event.target.value)} />
+      <Field error={errors.instructions} label="Pasos">
+        <Textarea value={instructions} onChange={(event) => setInstructions(event.target.value)} />
       </Field>
-      <div className="space-y-3 rounded-2xl bg-white p-3">
-        <p className="font-medium">Ingredientes</p>
-        {errors.ingredients ? <p className="text-sm text-red-700">{errors.ingredients}</p> : null}
-        <ul className="space-y-2">
-          {lines.map((line, index) => (
-            <li key={`${line.ingredient_id}-${index}`} className="flex items-center justify-between gap-2">
-              <span>
-                {line.name} · {line.quantity} {unitLabel(line.unit)}
-                {line.is_optional ? ' · opcional' : ''}
-              </span>
-              <button type="button" className="min-h-11 text-sm text-red-700" onClick={() => setLines(lines.filter((_, i) => i !== index))}>
-                Quitar
-              </button>
-            </li>
-          ))}
-        </ul>
-        <IngredientPicker
-          onSelect={(ingredient) => {
-            setPicked({ id: ingredient.id, name: ingredient.name, unit: ingredient.default_unit })
-            setDraftUnit(ingredient.default_unit)
-          }}
-        />
-        {picked ? <p className="text-sm">Seleccionado: {picked.name}</p> : null}
-        {errors.ingredient ? <p className="text-sm text-red-700">{errors.ingredient}</p> : null}
-        <div className="grid grid-cols-2 gap-2">
-          <input className={inputClass} inputMode="decimal" value={draftQty} onChange={(event) => setDraftQty(event.target.value)} />
-          <select className={inputClass} value={draftUnit} onChange={(event) => setDraftUnit(event.target.value as Unit)}>
-            {unitsFor(picked ? dimensionOf(picked.unit) : dimensionOf(draftUnit)).map((unit) => (
-              <option key={unit.value} value={unit.value}>
-                {unit.label}
-              </option>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ingredientes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {errors.ingredients ? <p className="text-destructive text-sm">{errors.ingredients}</p> : null}
+          <ul className="space-y-2">
+            {lines.map((line, index) => (
+              <li key={`${line.ingredient_id}-${index}`} className="flex items-center justify-between gap-2">
+                <span>
+                  {line.name} · {line.quantity} {unitLabel(line.unit)}
+                  {line.is_optional ? ' · opcional' : ''}
+                </span>
+                <Button size="sm" type="button" variant="outline" onClick={() => setLines(lines.filter((_, i) => i !== index))}>
+                  Quitar
+                </Button>
+              </li>
             ))}
-          </select>
-        </div>
-        {errors.quantity ? <p className="text-sm text-red-700">{errors.quantity}</p> : null}
-        <label className="flex min-h-11 items-center gap-2">
-          <input type="checkbox" checked={draftOptional} onChange={(event) => setDraftOptional(event.target.checked)} />
-          Opcional
-        </label>
-        <button type="button" className={`${secondaryButtonClass} w-full`} onClick={addLine}>
-          Agregar ingrediente
-        </button>
-      </div>
-      {formError ? <ErrorBlock message={formError} /> : null}
-      {saved ? (
-        <p className="text-emerald-800">
-          Guardado. <Link className="font-semibold underline" to="/recetas">Volver</Link>
-        </p>
+          </ul>
+          <IngredientPicker
+            onSelect={(ingredient) => {
+              setPicked({ id: ingredient.id, name: ingredient.name, unit: ingredient.default_unit })
+              setDraftUnit(ingredient.default_unit)
+            }}
+          />
+          {picked ? <p className="text-sm font-medium">Seleccionado: {picked.name}</p> : null}
+          {errors.ingredient ? <p className="text-destructive text-sm">{errors.ingredient}</p> : null}
+          <div className="grid grid-cols-2 gap-2">
+            <Input inputMode="decimal" value={draftQty} onChange={(event) => setDraftQty(event.target.value)} />
+            <NativeSelect value={draftUnit} onChange={(event) => setDraftUnit(event.target.value as Unit)}>
+              {unitsFor(picked ? dimensionOf(picked.unit) : dimensionOf(draftUnit)).map((unit) => (
+                <option key={unit.value} value={unit.value}>
+                  {unit.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+          {errors.quantity ? <p className="text-destructive text-sm">{errors.quantity}</p> : null}
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input checked={draftOptional} type="checkbox" onChange={(event) => setDraftOptional(event.target.checked)} />
+            Opcional
+          </label>
+          <Button className="w-full" type="button" variant="secondary" onClick={addLine}>
+            Agregar ingrediente
+          </Button>
+        </CardContent>
+      </Card>
+      {formError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
       ) : null}
-      <button className={`${buttonClass} w-full`} disabled={pending} type="submit">
+      {saved ? (
+        <Alert variant="success">
+          <AlertDescription>
+            Guardado.{' '}
+            <Link className="font-semibold underline" to="/recetas">
+              Volver a recetas
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      <Button className="w-full" disabled={pending} size="lg" type="submit">
         {pending ? 'Guardando…' : 'Guardar receta'}
-      </button>
+      </Button>
     </form>
   )
 }

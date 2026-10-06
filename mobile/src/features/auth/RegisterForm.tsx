@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
-import { Field, buttonClass, inputClass } from '../../components/ui'
-import { useAuth } from '../../context/AuthContext'
-import { errorMessage } from '../../utils/errors'
+import { Field } from '@/components/feedback'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useAuth } from '@/context/AuthContext'
+import { errorMessage } from '@/utils/errors'
 
 const schema = z
   .object({
@@ -55,24 +58,28 @@ export function RegisterForm() {
 
   return (
     <form className="space-y-4" onSubmit={(event) => void onSubmit(event)}>
-      <Field label="Nombre" error={errors.name}>
-        <input className={inputClass} value={values.name} onChange={(event) => update('name', event.target.value)} />
+      <Field error={errors.name} label="Nombre">
+        <Input value={values.name} onChange={(event) => update('name', event.target.value)} />
       </Field>
-      <Field label="Correo" error={errors.email}>
-        <input className={inputClass} type="email" autoComplete="email" value={values.email} onChange={(event) => update('email', event.target.value)} />
+      <Field error={errors.email} label="Correo">
+        <Input autoComplete="email" type="email" value={values.email} onChange={(event) => update('email', event.target.value)} />
       </Field>
-      <Field label="Contraseña" error={errors.password}>
-        <input className={inputClass} type="password" autoComplete="new-password" value={values.password} onChange={(event) => update('password', event.target.value)} />
+      <Field error={errors.password} label="Contraseña">
+        <Input autoComplete="new-password" type="password" value={values.password} onChange={(event) => update('password', event.target.value)} />
       </Field>
-      <Field label="Confirmar" error={errors.password_confirmation}>
-        <input className={inputClass} type="password" value={values.password_confirmation} onChange={(event) => update('password_confirmation', event.target.value)} />
+      <Field error={errors.password_confirmation} label="Confirmar">
+        <Input type="password" value={values.password_confirmation} onChange={(event) => update('password_confirmation', event.target.value)} />
       </Field>
-      {formError ? <p className="text-sm text-red-700">{formError}</p> : null}
-      <button className={`${buttonClass} w-full`} disabled={pending} type="submit">
+      {formError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Button className="w-full" disabled={pending} size="lg" type="submit">
         {pending ? 'Creando…' : 'Registrarme'}
-      </button>
-      <p className="text-center text-sm">
-        <Link className="font-semibold text-emerald-800" to="/login">
+      </Button>
+      <p className="text-muted-foreground text-center text-sm">
+        <Link className="text-primary font-semibold" to="/login">
           Ya tengo cuenta
         </Link>
       </p>

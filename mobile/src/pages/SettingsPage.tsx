@@ -1,25 +1,52 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { secondaryButtonClass } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { PageTitle } from '@/components/feedback'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { useAuth } from '@/context/AuthContext'
 
 export function SettingsPage() {
   const { user, logout } = useAuth()
+  const [confirmLogout, setConfirmLogout] = useState(false)
+  const [pending, setPending] = useState(false)
+
+  async function onLogout() {
+    setPending(true)
+    try {
+      await logout()
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Ajustes</h1>
-      <p className="rounded-2xl bg-white p-4">
-        {user?.name}
-        <span className="mt-1 block text-stone-500">{user?.email}</span>
-      </p>
-      <Link className={`${secondaryButtonClass} w-full`} to="/ingredientes">
-        Ingredientes
-      </Link>
-      <Link className={`${secondaryButtonClass} w-full`} to="/hogar">
-        Hogar
-      </Link>
-      <button type="button" className="min-h-12 w-full rounded-xl bg-stone-800 font-semibold text-white" onClick={() => void logout()}>
+      <PageTitle title="Ajustes" />
+      <Card>
+        <CardContent>
+          <p className="text-lg font-semibold">{user?.name}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{user?.email}</p>
+        </CardContent>
+      </Card>
+      <Button asChild className="w-full" variant="outline">
+        <Link to="/ingredientes">Ingredientes</Link>
+      </Button>
+      <Button asChild className="w-full" variant="outline">
+        <Link to="/hogar">Hogar</Link>
+      </Button>
+      <Button className="w-full" type="button" variant="secondary" onClick={() => setConfirmLogout(true)}>
         Cerrar sesión
-      </button>
+      </Button>
+      <ConfirmDialog
+        confirmLabel="Cerrar sesión"
+        description="Tendrás que volver a entrar para ver el hogar."
+        open={confirmLogout}
+        pending={pending}
+        title="¿Salir de HomeFood?"
+        onConfirm={() => void onLogout()}
+        onOpenChange={setConfirmLogout}
+      />
     </div>
   )
 }

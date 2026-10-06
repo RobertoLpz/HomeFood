@@ -1,21 +1,79 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
-body {
-  margin: 0;
-  min-height: 100svh;
-  background: #f5f5f4;
-  color: #1c1917;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
-#root {
-  min-height: 100svh;
+:root {
+  --radius: 1rem;
+  --background: oklch(0.975 0.008 95);
+  --foreground: oklch(0.24 0.02 155);
+  --card: oklch(0.995 0.004 95);
+  --card-foreground: oklch(0.24 0.02 155);
+  --popover: oklch(0.995 0.004 95);
+  --popover-foreground: oklch(0.24 0.02 155);
+  --primary: oklch(0.42 0.08 155);
+  --primary-foreground: oklch(0.985 0.008 95);
+  --secondary: oklch(0.94 0.015 95);
+  --secondary-foreground: oklch(0.28 0.03 155);
+  --muted: oklch(0.94 0.012 95);
+  --muted-foreground: oklch(0.48 0.02 155);
+  --accent: oklch(0.94 0.035 85);
+  --accent-foreground: oklch(0.34 0.05 70);
+  --destructive: oklch(0.55 0.19 27);
+  --destructive-foreground: oklch(0.985 0.008 95);
+  --border: oklch(0.9 0.012 95);
+  --input: oklch(0.9 0.012 95);
+  --ring: oklch(0.55 0.08 155);
 }
 
-button,
-a,
-input,
-select,
-textarea {
-  font: inherit;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    margin: 0;
+    min-height: 100svh;
+    font-family: var(--font-sans);
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
-import { LoadingBlock } from './components/ui'
+import { LoadingBlock } from '@/components/feedback'
 import { useAuth } from './context/AuthContext'
 import { useHousehold } from './context/HouseholdContext'
 import { AppShell } from './layouts/AppShell'

@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ErrorBlock, LoadingBlock } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
-import * as inventoryApi from '../services/api/inventory'
-import * as mealApi from '../services/api/mealPlans'
-import * as shoppingApi from '../services/api/shopping'
-import type { MealPlanItem, ShoppingListItem } from '../types'
-import { isoDate, mealLabel, startOfWeek } from '../utils/dates'
-import { errorMessage } from '../utils/errors'
-import { unitLabel } from '../utils/units'
+import { ChefHat, Package, Users } from 'lucide-react'
+import { ErrorBlock, LoadingBlock } from '@/components/feedback'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuth } from '@/context/AuthContext'
+import * as inventoryApi from '@/services/api/inventory'
+import * as mealApi from '@/services/api/mealPlans'
+import * as shoppingApi from '@/services/api/shopping'
+import type { MealPlanItem, ShoppingListItem } from '@/types'
+import { isoDate, mealLabel, startOfWeek } from '@/utils/dates'
+import { errorMessage } from '@/utils/errors'
+import { unitLabel } from '@/utils/units'
 
 function itemName(item: ShoppingListItem): string {
   return item.ingredient?.name ?? item.name ?? 'Producto'
@@ -64,49 +67,59 @@ export function DashboardPage() {
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">
-        {greeting}, {user?.name?.split(' ')[0]}
-      </h1>
-      <div className="grid grid-cols-3 gap-2">
+    <div className="space-y-6">
+      <div>
+        <p className="text-muted-foreground text-sm">{greeting}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{user?.name?.split(' ')[0]}</h1>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
         <Stat label="Comidas" value={planned} />
         <Stat label="Pendientes" value={pending} />
-        <Stat label="Inventario" value={stock} />
+        <Stat label="En casa" value={stock} />
       </div>
-      <section className="rounded-2xl bg-white p-4">
-        <h2 className="font-semibold">Siguiente comida</h2>
-        {nextMeal ? (
-          <p className="mt-2 text-lg">
-            {mealLabel(nextMeal.meal_type)} · {nextMeal.recipe?.name ?? 'Receta'}
-          </p>
-        ) : (
-          <p className="mt-2 text-stone-500">Nada planeado por ahora.</p>
-        )}
-      </section>
-      <section className="rounded-2xl bg-amber-50 p-4">
-        <h2 className="font-semibold">Te falta comprar</h2>
-        {missing.length === 0 ? (
-          <p className="mt-2 text-stone-600">No hay faltantes del plan.</p>
-        ) : (
-          <ul className="mt-2 space-y-1">
-            {missing.map((item) => (
-              <li key={item.id}>
-                {itemName(item)} · {item.quantity} {unitLabel(item.unit)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-      <div className="grid grid-cols-3 gap-2">
-        <Link className="flex min-h-14 items-center justify-center rounded-xl bg-white font-semibold" to="/inventario">
-          Inventario
-        </Link>
-        <Link className="flex min-h-14 items-center justify-center rounded-xl bg-white font-semibold" to="/hogar">
-          Hogar
-        </Link>
-        <Link className="flex min-h-14 items-center justify-center rounded-xl bg-white font-semibold" to="/ajustes">
-          Ajustes
-        </Link>
+      <Card className="bg-primary text-primary-foreground border-transparent">
+        <CardHeader>
+          <CardDescription className="text-primary-foreground/75">Siguiente comida</CardDescription>
+          <CardTitle className="text-primary-foreground text-xl">
+            {nextMeal ? (nextMeal.recipe?.name ?? 'Receta') : 'Nada planeado'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {nextMeal ? (
+            <Badge className="bg-primary-foreground/15 text-primary-foreground">{mealLabel(nextMeal.meal_type)}</Badge>
+          ) : (
+            <Link className="text-sm font-semibold underline-offset-4 hover:underline" to="/plan">
+              Armar el plan de la semana
+            </Link>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Te falta comprar</CardTitle>
+          <CardDescription>Lo que el plan todavía no cubre con lo que hay en casa.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {missing.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No hay faltantes del plan.</p>
+          ) : (
+            <ul className="space-y-3">
+              {missing.map((item) => (
+                <li key={item.id} className="flex items-baseline justify-between gap-3">
+                  <span className="font-medium">{itemName(item)}</span>
+                  <span className="text-muted-foreground text-sm tabular-nums">
+                    {item.quantity} {unitLabel(item.unit)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-3 gap-3">
+        <Shortcut icon={Package} label="Inventario" to="/inventario" />
+        <Shortcut icon={Users} label="Hogar" to="/hogar" />
+        <Shortcut icon={ChefHat} label="Ingredientes" to="/ingredientes" />
       </div>
     </div>
   )
@@ -114,9 +127,18 @@ export function DashboardPage() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl bg-white px-2 py-3 text-center">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-xs text-stone-500">{label}</p>
-    </div>
+    <Card className="gap-1 px-2 py-4 text-center shadow-none">
+      <p className="text-2xl font-semibold tabular-nums">{value}</p>
+      <p className="text-muted-foreground text-xs">{label}</p>
+    </Card>
+  )
+}
+
+function Shortcut({ icon: Icon, label, to }: { icon: typeof Package; label: string; to: string }) {
+  return (
+    <Link className="bg-card flex min-h-20 flex-col items-center justify-center gap-2 rounded-3xl border text-sm font-semibold" to={to}>
+      <Icon className="text-primary size-5" />
+      {label}
+    </Link>
   )
 }
