@@ -30,7 +30,7 @@ return new class extends Migration
             $table->string('default_unit');
             $table->timestamps();
 
-            $table->unsignedBigInteger('household_scope')->storedAs('ifnull(household_id, 0)');
+            $table->unsignedBigInteger('household_scope')->default(0);
             $table->unique(['household_scope', 'normalized_name']);
             $table->index('normalized_name');
         });

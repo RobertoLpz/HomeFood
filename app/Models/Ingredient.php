@@ -32,6 +32,7 @@ class Ingredient extends Model
     {
         static::saving(function (Ingredient $ingredient): void {
             $ingredient->normalized_name = self::normalize($ingredient->name);
+            $ingredient->household_scope = $ingredient->household_id ?? 0;
         });
     }
 
